@@ -36,33 +36,42 @@ const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
   // Listen only to cryptovoxels parcels transactions
-  log.warning("target: {}", [event.params.target.toHex()]);
-  if (event.params.target !== Address.fromString(CRYPTOVOXELS_CONTRACT)) {
-    return;
+  log.warning("orderApproved1: {}", [event.params.target.toHex()]);
+
+  if (event.params.target.toHex() != CRYPTOVOXELS_CONTRACT) {
+    return
   }
-  let order = Order.load(event.params.hash.toHex());
+
+  let order = Order.load(event.params.hash.toHexString());
   if (order === null) {
-    order = new Order(event.params.hash.toHex());
+    order = new Order(event.params.hash.toHexString());
   }
 
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     transaction = new Transaction(event.transaction.hash.toHex());
   }
+  transaction.block = event.block.number;
+  transaction.date = event.block.timestamp;
+  transaction.from = event.transaction.from.toHex();
+  transaction.save();
 
   let maker = Account.load(event.params.maker.toHex());
   if (maker === null) {
     maker = new Account(event.params.maker.toHex());
+    maker.save()
   }
 
   let taker = Account.load(event.params.taker.toHex());
   if (taker === null) {
     taker = new Account(event.params.taker.toHex());
+    taker.save()
   }
 
   let feeRecipient = Account.load(event.params.feeRecipient.toHex());
   if (feeRecipient === null) {
     feeRecipient = new Account(event.params.feeRecipient.toHex());
+    feeRecipient.save()
   }
 
   order.invalid = false;
@@ -82,23 +91,15 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
 
   order.exchangeAddress = event.params.exchange.toHex();
 
-  transaction.block = event.block.number;
-  transaction.date = event.block.timestamp;
-  transaction.from = maker.id;
-
-  maker.save();
   order.save()
-  taker.save();
-  feeRecipient.save();
-  transaction.save();
-  log.warning("maker:{}, feeRecipient: {}", [maker.id, feeRecipient.id]);
 }
 
 export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
+  log.warning("orderApproved2: {}", [event.params.hash.toHex()]);
+
   let order = Order.load(event.params.hash.toHexString());
   if (order === null) {
-    // first half of the order is missing
-    return;
+    order = new Order(event.params.hash.toHexString());
   }
 
   let paymentToken = PaymentToken.load(event.params.paymentToken.toHex());
@@ -118,8 +119,6 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
     paymentToken.save()
   }
 
-  log.warning("paymentToken found, {}", [event.params.paymentToken.toHex()]);
-
   order.basePrice = event.params.basePrice;
   order.calldata = event.params.calldata;
   order.expirationTime = event.params.expirationTime;
@@ -130,10 +129,16 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
   order.paymentToken = paymentToken.id;
   order.salt = event.params.salt;
 
-  log.warning("basePrice:{}, calldata: {}", [
-    event.params.basePrice.toString(),
-    event.params.calldata.toHex(),
-  ]);
+
+  let parcelId = getParcelIdFromCallData(event.params.calldata)
+
+  let parcel = Parcel.load(parcelId.toString());
+  if (parcel === null) {
+    parcel = new Parcel(parcelId.toString());
+    parcel.save();
+  }
+
+  order.parcel = parcel.id
   order.save();
 }
 
@@ -149,26 +154,27 @@ export function handleOrderCancelled(event: OrderCancelled): void {
 }
 
 export function handleOrdersMatched(event: OrdersMatched): void {
-  log.warning("sellHash: {}", [event.params.sellHash.toHexString()]);
+  log.warning("Order matched transaction: {}", [event.transaction.hash.toHex()]);
 
-  let sellOrder = Order.load(event.params.sellHash.toHexString());
-  if (sellOrder === null) {
-    // other half of the order is missing
-    return;
+  let transaction = Transaction.load(event.transaction.hash.toHex());
+  if (transaction === null) {
+    log.info('Transaction unknown, skipping',[])
+    return
   }
 
-  let buyOrder = Order.load(event.params.buyHash.toHexString());
-  const isZero = event.params.buyHash.toString() === zeroHash;
+  let sellOrder = Order.load(event.params.sellHash.toHexString());
+  
+  if (sellOrder === null) {
+    sellOrder = new Order(event.params.sellHash.toHexString());
+  }
 
-  if (buyOrder === null && isZero) {
-    // first half of the order is missing
-    log.warning("Cant find order", []);
+
+  let buyOrder = Order.load(event.params.buyHash.toHexString());
+  if (buyOrder === null) {
     buyOrder = new Order(event.params.buyHash.toHexString());
   }
 
-  if (buyOrder === null) {
-    return;
-  }
+  function isZero(hash:string):boolean {return hash === zeroHash} ;
 
   let maker = Account.load(event.params.maker.toHex());
   if (maker === null) {
@@ -182,14 +188,14 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     taker.save()
   }
 
-  let transaction = Transaction.load(event.transaction.hash.toHex());
-  if (transaction === null) {
-    transaction = new Transaction(event.transaction.hash.toHex());
-  }
-
   let saleEvent = SaleEvent.load(event.transaction.hash.toHex());
   if (saleEvent == null) {
     saleEvent = new SaleEvent(event.transaction.hash.toHex());
+  }
+
+  let transfer = TransferEntity.load(event.transaction.hash.toHex());
+  if (transfer == null) {
+    transfer = new TransferEntity(event.transaction.hash.toHex());
   }
 
   saleEvent.sellOrder = sellOrder.id;
@@ -197,18 +203,25 @@ export function handleOrdersMatched(event: OrdersMatched): void {
   saleEvent.maker = maker.id;
   saleEvent.taker = taker.id;
   saleEvent.price = event.params.price;
+  saleEvent.transfer =transfer.id
+  saleEvent.save();
+
+  transfer.saleEvent = saleEvent.id
+  transfer.transaction = transaction.id
+  transfer.date = event.block.timestamp;
+  transfer.save()
 
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
   transaction.from = event.transaction.from.toHex();
-
+  transaction.save();
+  
   sellOrder.invalid = true;
   buyOrder.invalid = true;
 
   sellOrder.save();
   buyOrder.save();
-  saleEvent.save();
-  transaction.save();
+
 }
 
 export function handleOwnershipRenounced(event: OwnershipRenounced): void {}
@@ -220,15 +233,11 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   let uints = event.inputValues[1].value.toBigIntArray();
   let feeMethodsSidesKindsHowToCalls = event.inputValues[2].value.toI32Array();
 
-  log.info("AtomicMatch call: {},  vs {}", [
-    addrs[4].toHex(),
-    CRYPTOVOXELS_CONTRACT
-  ]);
   if (addrs[4].toHex() != CRYPTOVOXELS_CONTRACT) {
     return
   }
   log.warning("IS CV CALL {} ", [addrs[4].toHex()]);
-  log.warning("maker: {}, taker: {}", [addrs[1].toHex(), addrs[2].toHex()]);
+  log.warning("tx: {}", [event.transaction.hash.toHex()]);
 
   // BUY
   let makerBuy = Account.load(addrs[1].toHex());
@@ -264,7 +273,6 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   let paymentTokenSell = PaymentToken.load(addrs[13].toHex());
 
   if(paymentTokenBuy == null){
-    log.warning("paymentTokenBuy {} zero: {} ", [addrs[6].toHex(),zeroAddress]);
     if(addrs[6].toHex() == zeroAddress){
       paymentTokenBuy = new PaymentToken(zeroAddress)
       paymentTokenBuy.decimals = 18;
@@ -292,9 +300,9 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     paymentTokenSell.save()
   }
 
-  let exchange = WyvernExchange.bind(
-    Address.fromString("0x7be8076f4ea4a4ad08075c2508e481d6c946d12b")
-  );
+  // let exchange = WyvernExchange.bind(
+  //   Address.fromString("0x7be8076f4ea4a4ad08075c2508e481d6c946d12b")
+  // );
 
   let exchangeAddress = addrs[0];
 
@@ -386,21 +394,44 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   let staticExtradataBuy = event.inputValues[7].value.toBytes();
   let staticExtradataSell = event.inputValues[8].value.toBytes();
 
-  let buyHash = exchange.hashOrder_(
-    addressesBuy,
-    uintsBuy,
-    feeMethodBuy,
-    sideBuy,
-    saleKindBuy,
-    howToCallBuy ,
-    callDataBuy,
-    replacementPatternBuy,
-    staticExtradataBuy
-  );
+  let transaction = Transaction.load(event.transaction.hash.toHex());
+  if (transaction === null) {
+    transaction = new Transaction(event.transaction.hash.toHex());
+    transaction.block = event.block.number;
+    transaction.date = event.block.timestamp;
+    transaction.from = event.transaction.from.toHex();
+    transaction.save()
+  }
 
-  let buyOrder = Order.load(buyHash.toHexString());
+  let saleEvent = SaleEvent.load(event.transaction.hash.toHex());
+  if (saleEvent == null) {
+    saleEvent = new SaleEvent(event.transaction.hash.toHex());
+  }
+
+
+  // create a temporary hash
+  let buyHash = 'buy-'+transaction.id+'@'+event.transaction.from.toHex()
+  let order = saleEvent.buyOrder
+  if(order !== null){
+    buyHash = order
+  }
+
+  
+  // exchange.hashOrder_(
+  //   addressesBuy,
+  //   uintsBuy,
+  //   feeMethodBuy,
+  //   sideBuy,
+  //   saleKindBuy,
+  //   howToCallBuy ,
+  //   callDataBuy,
+  //   replacementPatternBuy,
+  //   staticExtradataBuy
+  // );
+
+  let buyOrder = Order.load(buyHash); // will likely not exist
   if (buyOrder === null) {
-    buyOrder = new Order(buyHash.toHexString());
+    buyOrder = new Order(buyHash);
   }
 
   buyOrder.side = sideBuy;
@@ -426,21 +457,27 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   buyOrder.feeMethod = feeMethodBuy;
   buyOrder.basePrice = basePriceBuy;
 
-  let sellHash = exchange.hashOrder_(
-    addressesSell,
-    uintsSell,
-    feeMethodSell,
-    sideSell,
-    saleKindSell,
-    howToCallSell,
-    callDataSell,
-    replacementPatternSell,
-    staticExtradataSell
-  );
+  // exchange.hashOrder_(
+  //   addressesSell,
+  //   uintsSell,
+  //   feeMethodSell,
+  //   sideSell,
+  //   saleKindSell,
+  //   howToCallSell,
+  //   callDataSell,
+  //   replacementPatternSell,
+  //   staticExtradataSell
+  // );
 
-  let sellOrder = Order.load(sellHash.toHexString());
+  let sellHash:string = 'sell-'+transaction.id+'@'+event.transaction.from.toHex()
+  order = saleEvent.sellOrder
+  if(order !== null){
+    sellHash = order
+  }
+
+  let sellOrder = Order.load(sellHash); // will likely not exist
   if (sellOrder === null) {
-    sellOrder = new Order(sellHash.toHexString());
+    sellOrder = new Order(sellHash);
   }
   sellOrder.side = sideSell;
   sellOrder.saleKind = saleKindSell;
@@ -467,65 +504,44 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   buyOrder.save();
   sellOrder.save();
 
-  let decodedBuy = ethereum.decode("(address,address,uint256)", callDataBuy);
+  let parcelIdBuy = getParcelIdFromCallData(callDataBuy)
+  let parcelIdSell = getParcelIdFromCallData(callDataSell)
 
-  let decodedSell = ethereum.decode("(address,address,uint256)", callDataSell);
-
-  if (decodedBuy === null) {
-    return;
-  }
-  if (decodedSell === null) {
-    return;
-  }
-
-  let parcelId: BigInt | null = null;
-  if (decodedBuy.kind == ethereum.ValueKind.ARRAY) {
-    log.warning("decode array", []);
-    parcelId = decodedBuy.toArray()[2].toBigInt();
-  } else if (decodedBuy.kind == ethereum.ValueKind.FIXED_ARRAY) {
-    log.warning("decode fixed array", []);
-
-    parcelId = decodedBuy.toArray()[2].toBigInt();
-  } else {
-    log.warning("decodeBuy is not array", []);
-  }
-  if (!parcelId) {
-    return;
-  }
-
-  let parcel = Parcel.load(parcelId.toString());
+  let parcel = Parcel.load(parcelIdBuy.toString());
   if (parcel === null) {
-    parcel = new Parcel(parcelId.toString());
+    parcel = new Parcel(parcelIdBuy.toString());
+    parcel.save();
   }
+
+  saleEvent.parcel = parcel.id
+  saleEvent.save()
+
   buyOrder.parcel = parcel.id;
 
-  if (decodedSell.kind == ethereum.ValueKind.ARRAY) {
-    log.warning("decode array", []);
-    parcelId = decodedSell.toArray()[2].toBigInt();
-  } else if (decodedSell.kind == ethereum.ValueKind.FIXED_ARRAY) {
-    log.warning("decode fixed array", []);
-
-    parcelId = decodedSell.toArray()[2].toBigInt();
+  let parcelSell = Parcel.load(parcelIdSell.toString());
+  if (parcelSell === null) {
+    parcelSell = new Parcel(parcelIdSell.toString());
+    parcelSell.save()
   }
 
   sellOrder.parcel = parcel.id;
 
   buyOrder.save();
   sellOrder.save();
-  parcel.save();
 }
 
 export function handleParcelTransfer(event: Transfer): void {
-  log.warning("Parcel transfer; id: {}", [event.params._tokenId.toString()]);
+  log.warning("Parcel transfer; transaction: {}", [event.transaction.hash.toHex()]);
 
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     transaction = new Transaction(event.transaction.hash.toHex());
+    transaction.block = event.block.number;
+    transaction.date = event.block.timestamp;
+    transaction.from = event.transaction.from.toHex();
+    transaction.save()
   }
-  transaction.block = event.block.number;
-  transaction.date = event.block.timestamp;
-  transaction.from = event.transaction.from.toHex();
-  transaction.save()
+  
 
   let transfer = TransferEntity.load(event.transaction.hash.toHex());
   if (transfer == null) {
@@ -539,8 +555,6 @@ export function handleParcelTransfer(event: Transfer): void {
     parcel = new Parcel(event.params._tokenId.toString());
     parcel.save()
   }
-
-  let saleEvent = SaleEvent.load(event.transaction.hash.toHex());
 
   let sender = Account.load(event.params._from.toHex());
   if (sender == null) {
@@ -558,17 +572,53 @@ export function handleParcelTransfer(event: Transfer): void {
   transfer.to = owner.id
   transfer.parcel = parcel.id;
   transfer.date = event.block.timestamp;
-
   transfer.save()
-
-  if (saleEvent) {
-    transfer.saleEvent = saleEvent.id
-    saleEvent.parcel = parcel.id;
-    saleEvent.transfer = transfer.id;
-    saleEvent.save()
-  }
 
   parcel.owner = owner.id;
   parcel.save()
 
+}
+
+
+function getParcelIdFromCallData(callData:Bytes):BigInt {
+  
+  let transferFrom = '0x23b872dd'
+  let safeTransferFrom = '0x42842e0e'
+  let safeTransferFromBytes = '0xb88d4fde'
+
+  let functionCall = callData.toHexString().slice(0,10)
+
+  let newCallData = callData
+  if(functionCall.toString() == transferFrom || functionCall.toString() == safeTransferFrom || functionCall.toString() == safeTransferFromBytes){
+    let hexString =  callData.toHexString().slice(10,callData.toHexString().length)
+    newCallData = Bytes.fromByteArray(Bytes.fromHexString(hexString))
+
+
+    let decoded = ethereum.decode("(address,address,uint256)", newCallData);
+
+    if (decoded === null) {
+      log.warning("Could not decode", []);
+      return BigInt.fromI32(0)
+    }
+  
+    let parcelId: BigInt = BigInt.fromI32(0);
+    if(decoded.kind == ethereum.ValueKind.TUPLE){
+      let tuple = decoded.toTuple()
+      parcelId = tuple[2].toBigInt()
+  
+      log.warning('Decoded: Parcel id: {}',[tuple[2].toBigInt().toString()])
+  
+    }
+  
+  
+    
+    if (parcelId == BigInt.fromI32(0)) {
+      return BigInt.fromI32(0)
+    }
+  
+    return parcelId
+
+  }
+
+  return BigInt.fromI32(0)
 }
