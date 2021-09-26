@@ -23,3 +23,58 @@ The current flow when listening is:
 
 
 We gotta follow this issue: https://github.com/graphprotocol/graph-ts/issues/211 is not solved.
+
+Query examples:
+
+```
+  orders(first: 10) {
+    id
+    invalid
+    side
+    saleKind
+    transaction{
+      date
+    }
+    maker {
+      id
+    }
+    taker {
+      id
+    }
+    basePrice
+  }
+  ```
+
+```
+  parcels(first: 100) {
+    id
+    saleEvents {
+      id
+      price
+      buyOrder {
+        side
+        saleKind
+        paymentToken {
+          symbol
+        }
+        basePrice
+      }
+      sellOrder {
+        side
+        saleKind
+        paymentToken {
+          symbol
+        }
+        basePrice
+      }
+      transfer {
+        from {
+          id
+        }
+        to {
+          id
+        }
+      }
+    }
+  }
+  ```
