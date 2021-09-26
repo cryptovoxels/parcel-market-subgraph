@@ -51,23 +51,6 @@ export class Order extends Entity {
     this.set("id", Value.fromString(value));
   }
 
-  get transaction(): string | null {
-    let value = this.get("transaction");
-    if (!value || value.kind == ValueKind.NULL) {
-      return null;
-    } else {
-      return value.toString();
-    }
-  }
-
-  set transaction(value: string | null) {
-    if (!value) {
-      this.unset("transaction");
-    } else {
-      this.set("transaction", Value.fromString(<string>value));
-    }
-  }
-
   get maker(): string | null {
     let value = this.get("maker");
     if (!value || value.kind == ValueKind.NULL) {

@@ -1,6 +1,5 @@
 type Order @entity {
   id: ID!
-  transaction:Transaction
   maker:Account
   taker:Account
   exchangeAddress: String

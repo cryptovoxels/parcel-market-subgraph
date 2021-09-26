@@ -31,8 +31,11 @@ import { Transfer } from "../generated/Parcel/Parcel";
 
 const CRYPTOVOXELS_CONTRACT = "0x79986af15539de2db9a5086382daeda917a9cf0c";
 const zeroHash =
-  "0000000000000000000000000000000000000000000000000000000000000000";
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
 const zeroAddress = "0x0000000000000000000000000000000000000000"
+
+function isZero(hash:string):boolean {return hash == zeroHash} ;
+
 
 export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
   // Listen only to cryptovoxels parcels transactions
@@ -40,11 +43,6 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
 
   if (event.params.target.toHex() != CRYPTOVOXELS_CONTRACT) {
     return
-  }
-
-  let order = Order.load(event.params.hash.toHexString());
-  if (order === null) {
-    order = new Order(event.params.hash.toHexString());
   }
 
   let transaction = Transaction.load(event.transaction.hash.toHex());
@@ -74,33 +72,35 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
     feeRecipient.save()
   }
 
-  order.invalid = false;
-  order.taker = taker.id;
-  order.maker = maker.id;
-  order.transaction = transaction.id;
-  order.feeRecipient = feeRecipient.id;
-  order.makerRelayerFee = event.params.makerRelayerFee;
-  order.takerRelayerFee = event.params.takerRelayerFee;
-  order.makerProtocolFee = event.params.makerProtocolFee;
-  order.takerProtocolFee = event.params.takerProtocolFee;
+   /* Create/Edit an order ONLY if the order is valid; i.e Not an order hash of 0000000... */
+  if(isZero(event.params.hash.toHexString())==false){
+    let order = Order.load(event.params.hash.toHexString());
+    if (order === null) {
+      order = new Order(event.params.hash.toHexString());
+    }
+    order.invalid = false;
+    order.taker = taker.id;
+    order.maker = maker.id;
+    order.feeRecipient = feeRecipient.id;
+    order.makerRelayerFee = event.params.makerRelayerFee;
+    order.takerRelayerFee = event.params.takerRelayerFee;
+    order.makerProtocolFee = event.params.makerProtocolFee;
+    order.takerProtocolFee = event.params.takerProtocolFee;
+  
+    //@ts-ignore
+    order.side = event.params.side as i32;
+    //@ts-ignore
+    order.saleKind = event.params.saleKind as i32;
+  
+    order.exchangeAddress = event.params.exchange.toHex();
+    order.save()
+  }
 
-  //@ts-ignore
-  order.side = event.params.side as i32;
-  //@ts-ignore
-  order.saleKind = event.params.saleKind as i32;
 
-  order.exchangeAddress = event.params.exchange.toHex();
-
-  order.save()
 }
 
 export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
   log.warning("orderApproved2: {}", [event.params.hash.toHex()]);
-
-  let order = Order.load(event.params.hash.toHexString());
-  if (order === null) {
-    order = new Order(event.params.hash.toHexString());
-  }
 
   let paymentToken = PaymentToken.load(event.params.paymentToken.toHex());
 
@@ -119,17 +119,6 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
     paymentToken.save()
   }
 
-  order.basePrice = event.params.basePrice;
-  order.calldata = event.params.calldata;
-  order.expirationTime = event.params.expirationTime;
-  order.staticTarget = event.params.staticTarget.toHex();
-  order.listingTime = event.params.listingTime;
-  order.howToCall = event.params.howToCall;
-  order.extra = event.params.extra;
-  order.paymentToken = paymentToken.id;
-  order.salt = event.params.salt;
-
-
   let parcelId = getParcelIdFromCallData(event.params.calldata)
 
   let parcel = Parcel.load(parcelId.toString());
@@ -137,9 +126,38 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
     parcel = new Parcel(parcelId.toString());
     parcel.save();
   }
+  let transaction = Transaction.load(event.transaction.hash.toHex());
+  if (transaction === null) {
+    transaction = new Transaction(event.transaction.hash.toHex());
+  }
+  transaction.block = event.block.number;
+  transaction.date = event.block.timestamp;
+  transaction.from = event.transaction.from.toHex();
+  transaction.save();
+   /* Create/Edit an order ONLY if the order is vali; i.e Not an order hash of 0000000... */
+  if(isZero(event.params.hash.toHexString())==false){
+    
+    let order = Order.load(event.params.hash.toHexString());
+    if (order === null) {
+      order = new Order(event.params.hash.toHexString());
+    }
+    
+    order.basePrice = event.params.basePrice;
+    order.calldata = event.params.calldata;
+    order.expirationTime = event.params.expirationTime;
+    order.staticTarget = event.params.staticTarget.toHex();
+    order.listingTime = event.params.listingTime;
+    order.howToCall = event.params.howToCall;
+    order.extra = event.params.extra;
+    order.paymentToken = paymentToken.id;
+    order.salt = event.params.salt;
 
-  order.parcel = parcel.id
-  order.save();
+    order.parcel = parcel.id
+    order.save();
+  }
+
+
+
 }
 
 export function handleOrderCancelled(event: OrderCancelled): void {
@@ -154,27 +172,46 @@ export function handleOrderCancelled(event: OrderCancelled): void {
 }
 
 export function handleOrdersMatched(event: OrdersMatched): void {
-  log.warning("Order matched transaction: {}", [event.transaction.hash.toHex()]);
 
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     log.info('Transaction unknown, skipping',[])
     return
   }
+  log.warning("Order matched transaction: {}", [event.transaction.hash.toHex()]);
 
-  let sellOrder = Order.load(event.params.sellHash.toHexString());
+
+  let saleEvent = SaleEvent.load(event.transaction.hash.toHex());
+  if (saleEvent == null) {
+    saleEvent = new SaleEvent(event.transaction.hash.toHex());
+  }
+
+ /* Create an order ONLY if the order is vali; i.e Not an order hash of 0000000... */
+  if(isZero(event.params.sellHash.toHexString()) == false){
+
+    let sellOrder = Order.load(event.params.sellHash.toHexString());
   
-  if (sellOrder === null) {
-    sellOrder = new Order(event.params.sellHash.toHexString());
+    if (sellOrder === null) {
+      sellOrder = new Order(event.params.sellHash.toHexString());
+    }
+
+    saleEvent.sellOrder = sellOrder.id;
+    sellOrder.invalid = true;
+    sellOrder.save();
   }
 
+ /* Create an order ONLY if the order is vali; i.e Not an order hash of 0000000... */
+  if(isZero(event.params.buyHash.toHexString()) == false){
 
-  let buyOrder = Order.load(event.params.buyHash.toHexString());
-  if (buyOrder === null) {
-    buyOrder = new Order(event.params.buyHash.toHexString());
+    let buyOrder = Order.load(event.params.buyHash.toHexString());
+    if (buyOrder === null) {
+      buyOrder = new Order(event.params.buyHash.toHexString());
+    }
+
+    saleEvent.buyOrder = buyOrder.id;
+    buyOrder.invalid = true;
+    buyOrder.save();
   }
-
-  function isZero(hash:string):boolean {return hash === zeroHash} ;
 
   let maker = Account.load(event.params.maker.toHex());
   if (maker === null) {
@@ -188,18 +225,12 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     taker.save()
   }
 
-  let saleEvent = SaleEvent.load(event.transaction.hash.toHex());
-  if (saleEvent == null) {
-    saleEvent = new SaleEvent(event.transaction.hash.toHex());
-  }
-
   let transfer = TransferEntity.load(event.transaction.hash.toHex());
   if (transfer == null) {
     transfer = new TransferEntity(event.transaction.hash.toHex());
   }
+  
 
-  saleEvent.sellOrder = sellOrder.id;
-  saleEvent.buyOrder = buyOrder.id;
   saleEvent.maker = maker.id;
   saleEvent.taker = taker.id;
   saleEvent.price = event.params.price;
@@ -215,12 +246,6 @@ export function handleOrdersMatched(event: OrdersMatched): void {
   transaction.date = event.block.timestamp;
   transaction.from = event.transaction.from.toHex();
   transaction.save();
-  
-  sellOrder.invalid = true;
-  buyOrder.invalid = true;
-
-  sellOrder.save();
-  buyOrder.save();
 
 }
 
@@ -408,12 +433,60 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     saleEvent = new SaleEvent(event.transaction.hash.toHex());
   }
 
+  let parcelIdBuy = getParcelIdFromCallData(callDataBuy)
+  let parcelIdSell = getParcelIdFromCallData(callDataSell)
 
-  // create a temporary hash
-  let buyHash = 'buy-'+transaction.id+'@'+event.transaction.from.toHex()
+  let parcel = Parcel.load(parcelIdBuy.toString());
+  if (parcel === null) {
+    parcel = new Parcel(parcelIdBuy.toString());
+    parcel.save();
+  }
+
+  let parcelSell = Parcel.load(parcelIdSell.toString());
+  if (parcelSell === null) {
+    parcelSell = new Parcel(parcelIdSell.toString());
+    parcelSell.save()
+  }
+
+  saleEvent.parcel = parcel.id
+  saleEvent.save()
+
   let order = saleEvent.buyOrder
-  if(order !== null){
-    buyHash = order
+   /* Create/Edit an order ONLY if the order is valid; i.e Not an order hash of 0000000... */
+  if(order !== null && isZero(order)==false){
+
+    let buyOrder = Order.load(order);
+    if(buyOrder ===null){
+      buyOrder = new Order(order);
+    }
+
+    
+    saleEvent.buyOrder = buyOrder.id;
+    buyOrder.invalid = true;
+
+    buyOrder.side = sideBuy;
+    buyOrder.saleKind = saleKindBuy;
+    buyOrder.maker = makerBuy.id;
+    buyOrder.taker = takerBuy.id;
+    buyOrder.staticTarget = staticTarget;
+    buyOrder.target = target;
+    buyOrder.takerProtocolFee = takerProtocolFeeBuy;
+    buyOrder.makerProtocolFee = makerProtocolFeeBuy;
+    buyOrder.makerRelayerFee = makerRelayerFeeBuy;
+    buyOrder.takerRelayerFee = takerRelayerFeeBuy;
+  
+    buyOrder.extra = extraBuy;
+    buyOrder.listingTime = listingTimeBuy;
+    buyOrder.expirationTime = expirationTimeBuy;
+    buyOrder.exchangeAddress = exchangeAddress.toHex();
+    buyOrder.salt = saltBuy;
+    buyOrder.paymentToken = paymentTokenBuy.id;
+  
+    buyOrder.howToCall = howToCallBuy;
+    buyOrder.feeMethod = feeMethodBuy;
+    buyOrder.basePrice = basePriceBuy;
+    buyOrder.parcel = parcel.id;
+    buyOrder.save()
   }
 
   
@@ -429,34 +502,6 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   //   staticExtradataBuy
   // );
 
-  let buyOrder = Order.load(buyHash); // will likely not exist
-  if (buyOrder === null) {
-    buyOrder = new Order(buyHash);
-  }
-
-  buyOrder.side = sideBuy;
-  buyOrder.saleKind = saleKindBuy;
-  buyOrder.maker = makerBuy.id;
-  buyOrder.taker = takerBuy.id;
-  buyOrder.staticTarget = staticTarget;
-  buyOrder.target = target;
-  buyOrder.takerProtocolFee = takerProtocolFeeBuy;
-  buyOrder.makerProtocolFee = makerProtocolFeeBuy;
-  buyOrder.makerRelayerFee = makerRelayerFeeBuy;
-  buyOrder.takerRelayerFee = takerRelayerFeeBuy;
-
-  buyOrder.extra = extraBuy;
-  buyOrder.listingTime = listingTimeBuy;
-  buyOrder.expirationTime = expirationTimeBuy;
-  buyOrder.exchangeAddress = exchangeAddress.toHex();
-  buyOrder.salt = saltBuy;
-  buyOrder.paymentToken = paymentTokenBuy.id;
-
-  buyOrder.howToCall = howToCallBuy;
-  buyOrder.invalid = false;
-  buyOrder.feeMethod = feeMethodBuy;
-  buyOrder.basePrice = basePriceBuy;
-
   // exchange.hashOrder_(
   //   addressesSell,
   //   uintsSell,
@@ -469,65 +514,43 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   //   staticExtradataSell
   // );
 
-  let sellHash:string = 'sell-'+transaction.id+'@'+event.transaction.from.toHex()
-  order = saleEvent.sellOrder
-  if(order !== null){
-    sellHash = order
+  let orderSell = saleEvent.sellOrder
+   /* Create/Edit an order ONLY if the order is valid; i.e Not an order hash of 0000000... */
+  if(orderSell !== null && isZero(orderSell)==false){
+
+    let sellOrder = Order.load(orderSell); // will likely exist
+    if(sellOrder ===null){
+      sellOrder = new Order(orderSell);
+    }
+    saleEvent.sellOrder = sellOrder.id;
+    sellOrder.side = sideSell;
+    sellOrder.saleKind = saleKindSell;
+    sellOrder.maker = makerSell.id;
+    sellOrder.taker = takerSell.id;
+    sellOrder.staticTarget = staticTarget;
+    sellOrder.target = target;
+    sellOrder.takerProtocolFee = takerProtocolFeeSell;
+    sellOrder.makerProtocolFee = makerProtocolFeeSell;
+    sellOrder.makerRelayerFee = makerRelayerFeeSell;
+    sellOrder.takerRelayerFee = takerRelayerFeeSell;
+  
+    sellOrder.extra = extraSell;
+    sellOrder.listingTime = listingTimeSell;
+    sellOrder.expirationTime = expirationTimeSell;
+    sellOrder.exchangeAddress = exchangeAddress.toHex();
+    sellOrder.salt = saltSell;
+    sellOrder.paymentToken = paymentTokenSell.id;
+    sellOrder.howToCall = howToCallSell;
+    sellOrder.invalid = true;
+    sellOrder.feeMethod = feeMethodSell;
+    sellOrder.basePrice = basePriceSell;
+    sellOrder.parcel = parcelSell.id;
+
+    sellOrder.save()
   }
 
-  let sellOrder = Order.load(sellHash); // will likely not exist
-  if (sellOrder === null) {
-    sellOrder = new Order(sellHash);
-  }
-  sellOrder.side = sideSell;
-  sellOrder.saleKind = saleKindSell;
-  sellOrder.maker = makerSell.id;
-  sellOrder.taker = takerSell.id;
-  sellOrder.staticTarget = staticTarget;
-  sellOrder.target = target;
-  sellOrder.takerProtocolFee = takerProtocolFeeSell;
-  sellOrder.makerProtocolFee = makerProtocolFeeSell;
-  sellOrder.makerRelayerFee = makerRelayerFeeSell;
-  sellOrder.takerRelayerFee = takerRelayerFeeSell;
 
-  sellOrder.extra = extraSell;
-  sellOrder.listingTime = listingTimeSell;
-  sellOrder.expirationTime = expirationTimeSell;
-  sellOrder.exchangeAddress = exchangeAddress.toHex();
-  sellOrder.salt = saltSell;
-  sellOrder.paymentToken = paymentTokenSell.id;
-  sellOrder.howToCall = howToCallSell;
-  sellOrder.invalid = false;
-  sellOrder.feeMethod = feeMethodSell;
-  sellOrder.basePrice = basePriceSell;
-
-  buyOrder.save();
-  sellOrder.save();
-
-  let parcelIdBuy = getParcelIdFromCallData(callDataBuy)
-  let parcelIdSell = getParcelIdFromCallData(callDataSell)
-
-  let parcel = Parcel.load(parcelIdBuy.toString());
-  if (parcel === null) {
-    parcel = new Parcel(parcelIdBuy.toString());
-    parcel.save();
-  }
-
-  saleEvent.parcel = parcel.id
   saleEvent.save()
-
-  buyOrder.parcel = parcel.id;
-
-  let parcelSell = Parcel.load(parcelIdSell.toString());
-  if (parcelSell === null) {
-    parcelSell = new Parcel(parcelIdSell.toString());
-    parcelSell.save()
-  }
-
-  sellOrder.parcel = parcel.id;
-
-  buyOrder.save();
-  sellOrder.save();
 }
 
 export function handleParcelTransfer(event: Transfer): void {
