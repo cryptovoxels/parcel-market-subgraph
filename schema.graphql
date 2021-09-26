@@ -1,0 +1,77 @@
+type Order @entity {
+  id: ID!
+  transaction:Transaction
+  maker:Account
+  taker:Account
+  exchangeAddress: String
+  takerRelayerFee: BigInt
+  makerRelayerFee: BigInt
+  takerProtocolFee: BigInt
+  makerProtocolFee: BigInt
+  feeRecipient: Account
+  staticTarget:String
+  feeMethod:Int
+  side:Int
+  saleKind:Int
+  target:String!
+  howToCall:Int
+  calldata:Bytes
+  paymentToken:PaymentToken
+  basePrice:BigInt
+  extra:BigInt
+  listingTime:BigInt
+  expirationTime:BigInt
+  salt:BigInt
+  invalid:Boolean
+  parcel:Parcel
+}
+#0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+type PaymentToken @entity {
+  id:ID!
+  symbol:String!
+  decimals:Int!
+}
+
+type Account @entity {
+  id: ID!
+  parcels:[Parcel!]! @derivedFrom (field:"owner")
+  makerOrders: [Order!]! @derivedFrom (field:"maker")
+  takerOrders: [Order!]! @derivedFrom (field:"taker")
+  transactions: [Transaction!]! @derivedFrom (field: "from")
+}
+
+type Parcel @entity{
+id: ID!
+owner:Account!
+orders:[Order!]! @derivedFrom (field: "parcel")
+saleEvents: [SaleEvent!]! @derivedFrom (field: "parcel")
+transfers: [Transfer!]! @derivedFrom (field: "parcel")
+}
+
+type SaleEvent @entity{
+  id: ID!
+  sellOrder: Order
+  buyOrder: Order
+  maker: Account
+  taker: Account
+  price: BigInt
+  parcel: Parcel
+  transfer: Transfer
+}
+
+type Transfer @entity{
+  id: ID!
+  saleEvent:SaleEvent
+  from: Account!
+  to: Account!
+  parcel: Parcel!
+  transaction: Transaction!
+  date:BigInt
+}
+
+type Transaction @entity {
+  id: ID!
+  date: BigInt!
+  block: BigInt!
+  from: Account!
+}
