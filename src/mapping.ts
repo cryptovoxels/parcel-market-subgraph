@@ -39,11 +39,12 @@ function isZero(hash:string):boolean {return hash == zeroHash} ;
 
 export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
   // Listen only to cryptovoxels parcels transactions
-  log.warning("orderApproved1: {}", [event.params.target.toHex()]);
 
   if (event.params.target.toHex() != CRYPTOVOXELS_CONTRACT) {
     return
   }
+  log.warning("IS CV Event ", []);
+  log.warning("orderApproved1: {}", [event.params.target.toHex()]);
 
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
@@ -86,11 +87,8 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
     order.takerRelayerFee = event.params.takerRelayerFee;
     order.makerProtocolFee = event.params.makerProtocolFee;
     order.takerProtocolFee = event.params.takerProtocolFee;
-  
-    //@ts-ignore
-    order.side = event.params.side as i32;
-    //@ts-ignore
-    order.saleKind = event.params.saleKind as i32;
+    order.side = event.params.side;
+    order.saleKind = event.params.saleKind
   
     order.exchangeAddress = event.params.exchange.toHex();
     order.save()
@@ -100,24 +98,15 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
 }
 
 export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
+
+  let order = Order.load(event.params.hash.toHexString());
+  if (order === null) {
+    //Missing approved part one
+    return
+  }
   log.warning("orderApproved2: {}", [event.params.hash.toHex()]);
 
-  let paymentToken = PaymentToken.load(event.params.paymentToken.toHex());
-
-  if(paymentToken == null){
-    log.warning("paymentToken {} ", [event.params.paymentToken.toHex()]);
-    if(event.params.paymentToken.toHex() == zeroAddress){
-      paymentToken = new PaymentToken(zeroAddress)
-      paymentToken.decimals = 18;
-      paymentToken.symbol = 'ETH'
-    }else{
-      paymentToken = new PaymentToken(event.params.paymentToken.toHex());
-      let token = Weth.bind(event.params.paymentToken);
-      paymentToken.decimals = token.decimals();
-      paymentToken.symbol = token.symbol()
-    }
-    paymentToken.save()
-  }
+  let paymentToken = getPaymentToken(event.params.paymentToken)
 
   let parcelId = getParcelIdFromCallData(event.params.calldata)
 
@@ -151,7 +140,7 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
     order.extra = event.params.extra;
     order.paymentToken = paymentToken.id;
     order.salt = event.params.salt;
-
+    order.invalid = false
     order.parcel = parcel.id
     order.save();
   }
@@ -261,7 +250,7 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   if (addrs[4].toHex() != CRYPTOVOXELS_CONTRACT) {
     return
   }
-  log.warning("IS CV CALL {} ", [addrs[4].toHex()]);
+  log.warning("IS CV CALL ", []);
   log.warning("tx: {}", [event.transaction.hash.toHex()]);
 
   // BUY
@@ -294,36 +283,8 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   let staticTarget = addrs[5].toHex();
 
   // Generate an ERC20 paymentToken
-  let paymentTokenBuy = PaymentToken.load(addrs[6].toHex());
-  let paymentTokenSell = PaymentToken.load(addrs[13].toHex());
-
-  if(paymentTokenBuy == null){
-    if(addrs[6].toHex() == zeroAddress){
-      paymentTokenBuy = new PaymentToken(zeroAddress)
-      paymentTokenBuy.decimals = 18;
-      paymentTokenBuy.symbol = 'ETH'
-    }else{
-      paymentTokenBuy = new PaymentToken(addrs[6].toHex());
-      let token = Weth.bind(addrs[6]);
-      paymentTokenBuy.decimals = token.decimals();
-      paymentTokenBuy.symbol = token.symbol()
-    }
-    paymentTokenBuy.save()
-  }
-
-  if(paymentTokenSell == null){
-    if(addrs[13].toHex() == zeroAddress){
-      paymentTokenSell = new PaymentToken(zeroAddress)
-      paymentTokenSell.decimals = 18;
-      paymentTokenSell.symbol = 'ETH'
-    }else{
-      paymentTokenSell = new PaymentToken(addrs[13].toHex());
-      let token = Weth.bind(addrs[13]);
-      paymentTokenSell.decimals = token.decimals();
-      paymentTokenSell.symbol = token.symbol()
-    }
-    paymentTokenSell.save()
-  }
+  let paymentTokenBuy = getPaymentToken(addrs[6])
+  let paymentTokenSell = getPaymentToken(addrs[13])
 
   // let exchange = WyvernExchange.bind(
   //   Address.fromString("0x7be8076f4ea4a4ad08075c2508e481d6c946d12b")
@@ -644,4 +605,35 @@ function getParcelIdFromCallData(callData:Bytes):BigInt {
   }
 
   return BigInt.fromI32(0)
+}
+
+
+function getPaymentToken(address:Address):PaymentToken{
+  let paymentToken = PaymentToken.load(address.toHex());
+
+  if(paymentToken == null){
+    log.warning("paymentToken {} ", [address.toHex()]);
+    if(address.toHex() == zeroAddress){
+      paymentToken = new PaymentToken(zeroAddress)
+      paymentToken.decimals = 18;
+      paymentToken.symbol = 'ETH'
+    }else{
+      paymentToken = new PaymentToken(address.toHex());
+      let token = Weth.bind(address);
+      let callResult_decimal = token.try_decimals();
+      if (callResult_decimal.reverted) {
+        paymentToken.decimals = 18
+      } else {
+        paymentToken.decimals = callResult_decimal.value;
+      }
+      let callResult_symbol = token.try_symbol();
+      if (callResult_symbol.reverted) {
+        paymentToken.symbol = address.toHex()
+      } else {
+        paymentToken.symbol = callResult_symbol.value;
+      }
+    }
+    paymentToken.save()
+  }
+  return paymentToken
 }
