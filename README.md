@@ -8,4 +8,18 @@ It links the two events together.
 
 A transfer is its own entity and may or may not have a saleEvent.
 
-This subgraph is completely broken as long as https://github.com/graphprotocol/graph-ts/issues/211 is not solved.
+The current flow when listening is:
+
+1. **Parcel was transferred**
+- Create parcel object if non existant,
+- Create transfer object
+- Create transaction
+2. **New Atomic match event**
+- Create new SaleEvent
+- Use transaction id to link to recent parcel transfer
+- Add orders information and buyer / seller
+3. **New atomicMatch_ Call**
+- Get extra information such as price and all.
+
+
+We gotta follow this issue: https://github.com/graphprotocol/graph-ts/issues/211 is not solved.
