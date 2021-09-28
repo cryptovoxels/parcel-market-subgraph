@@ -96,6 +96,7 @@ saleEvents{
     to{
       id
     }
+    date
     transaction{
       id
     }
