@@ -37,14 +37,18 @@ SaleKind:
 
 ### Sources:
 Opensea contract page:
+
 https://etherscan.io/address/0x7be8076f4ea4a4ad08075c2508e481d6c946d12b#code
 
 WyvernContract documentation:
+
 https://docs.projectwyvern.com/docs/Exchange/
 
 Typical Opensea tx:
 https://etherscan.io/tx/0xc4364dcfb016e277290036cd10f6c84a86f3758e2dea6bb6ce978d065dfb46cd
 
+Subgraph:
+https://thegraph.com/legacy-explorer/subgraph/benjythebee/cryptovoxels-parcels
 
 ## Query examples:
 
