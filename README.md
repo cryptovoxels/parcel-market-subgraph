@@ -27,6 +27,7 @@ We gotta follow this issue: https://github.com/graphprotocol/graph-ts/issues/211
 
 Query examples:
 
+get first 10 orders
 ```
   orders(first: 10) {
     id
@@ -46,36 +47,60 @@ Query examples:
   }
   ```
 
+get 100 saleEvents
 ```
-  parcels(first: 100) {
-    id
-    saleEvents {
+{
+saleEvents{
+  buyOrder{
+    side
+    saleKind
+    basePrice
+    parcel{
       id
-      price
-      buyOrder {
-        side
-        saleKind
-        paymentToken {
-          symbol
-        }
-        basePrice
-      }
-      sellOrder {
-        side
-        saleKind
-        paymentToken {
-          symbol
-        }
-        basePrice
-      }
-      transfer {
-        from {
-          id
-        }
-        to {
-          id
-        }
-      }
+    }
+    paymentToken{
+      symbol
+    }
+    listingTime
+    expirationTime
+    maker{
+      id
+    }
+    taker{
+      id
     }
   }
+  sellOrder{
+    side
+    saleKind
+    basePrice
+    parcel{
+      id
+    }
+    paymentToken{
+      symbol
+    }
+    listingTime
+    expirationTime
+    maker{
+      id
+    }
+    taker{
+      id
+    }
+  }
+  transfer{
+    from{
+      id
+    }
+    to{
+      id
+    }
+    transaction{
+      id
+    }
+  }
+}
+}
+
   ```
