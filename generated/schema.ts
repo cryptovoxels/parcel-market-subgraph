@@ -393,6 +393,23 @@ export class Order extends Entity {
       this.set("parcel", Value.fromString(<string>value));
     }
   }
+
+  get date(): BigInt | null {
+    let value = this.get("date");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set date(value: BigInt | null) {
+    if (!value) {
+      this.unset("date");
+    } else {
+      this.set("date", Value.fromBigInt(<BigInt>value));
+    }
+  }
 }
 
 export class PaymentToken extends Entity {
@@ -593,6 +610,8 @@ export class SaleEvent extends Entity {
   constructor(id: string) {
     super();
     this.set("id", Value.fromString(id));
+
+    this.set("saleKind", Value.fromI32(0));
   }
 
   save(): void {
@@ -738,6 +757,32 @@ export class SaleEvent extends Entity {
     } else {
       this.set("transfer", Value.fromString(<string>value));
     }
+  }
+
+  get date(): BigInt | null {
+    let value = this.get("date");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set date(value: BigInt | null) {
+    if (!value) {
+      this.unset("date");
+    } else {
+      this.set("date", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
+  get saleKind(): i32 {
+    let value = this.get("saleKind");
+    return value!.toI32();
+  }
+
+  set saleKind(value: i32) {
+    this.set("saleKind", Value.fromI32(value));
   }
 }
 

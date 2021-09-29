@@ -52,24 +52,24 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
   }
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
-  transaction.from = event.transaction.from.toHex();
+  transaction.from = event.transaction.from.toHex().toLowerCase();
   transaction.save();
 
-  let maker = Account.load(event.params.maker.toHex());
+  let maker = Account.load(event.params.maker.toHex().toLowerCase());
   if (maker === null) {
-    maker = new Account(event.params.maker.toHex());
+    maker = new Account(event.params.maker.toHex().toLowerCase());
     maker.save()
   }
 
-  let taker = Account.load(event.params.taker.toHex());
+  let taker = Account.load(event.params.taker.toHex().toLowerCase());
   if (taker === null) {
-    taker = new Account(event.params.taker.toHex());
+    taker = new Account(event.params.taker.toHex().toLowerCase());
     taker.save()
   }
 
-  let feeRecipient = Account.load(event.params.feeRecipient.toHex());
+  let feeRecipient = Account.load(event.params.feeRecipient.toHex().toLowerCase());
   if (feeRecipient === null) {
-    feeRecipient = new Account(event.params.feeRecipient.toHex());
+    feeRecipient = new Account(event.params.feeRecipient.toHex().toLowerCase());
     feeRecipient.save()
   }
 
@@ -89,6 +89,7 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
     order.takerProtocolFee = event.params.takerProtocolFee;
     order.side = event.params.side;
     order.saleKind = event.params.saleKind
+    order.date =event.block.timestamp;
   
     order.exchangeAddress = event.params.exchange.toHex();
     order.save()
@@ -121,7 +122,7 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
   }
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
-  transaction.from = event.transaction.from.toHex();
+  transaction.from = event.transaction.from.toHex().toLowerCase();
   transaction.save();
    /* Create/Edit an order ONLY if the order is vali; i.e Not an order hash of 0000000... */
   if(isZero(event.params.hash.toHexString())==false){
@@ -175,6 +176,17 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     saleEvent = new SaleEvent(event.transaction.hash.toHex());
   }
 
+  let maker = Account.load(event.params.maker.toHex().toLowerCase());
+  if (maker === null) {
+    maker = new Account(event.params.maker.toHex().toLowerCase());
+    maker.save()
+  }
+
+  let taker = Account.load(event.params.taker.toHex().toLowerCase());
+  if (taker === null) {
+    taker = new Account(event.params.taker.toHex().toLowerCase());
+    taker.save()
+  }
  /* Create an order ONLY if the order is vali; i.e Not an order hash of 0000000... */
   if(isZero(event.params.sellHash.toHexString()) == false){
 
@@ -182,6 +194,9 @@ export function handleOrdersMatched(event: OrdersMatched): void {
   
     if (sellOrder === null) {
       sellOrder = new Order(event.params.sellHash.toHexString());
+      sellOrder.maker = maker.id
+      sellOrder.taker = taker.id
+      sellOrder.basePrice = event.params.price
     }
 
     saleEvent.sellOrder = sellOrder.id;
@@ -195,6 +210,11 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     let buyOrder = Order.load(event.params.buyHash.toHexString());
     if (buyOrder === null) {
       buyOrder = new Order(event.params.buyHash.toHexString());
+
+      
+      buyOrder.maker = maker.id
+      buyOrder.taker = taker.id
+      buyOrder.basePrice = event.params.price
     }
 
     saleEvent.buyOrder = buyOrder.id;
@@ -202,17 +222,6 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     buyOrder.save();
   }
 
-  let maker = Account.load(event.params.maker.toHex());
-  if (maker === null) {
-    maker = new Account(event.params.maker.toHex());
-    maker.save()
-  }
-
-  let taker = Account.load(event.params.taker.toHex());
-  if (taker === null) {
-    taker = new Account(event.params.taker.toHex());
-    taker.save()
-  }
 
   let transfer = TransferEntity.load(event.transaction.hash.toHex());
   if (transfer == null) {
@@ -224,6 +233,7 @@ export function handleOrdersMatched(event: OrdersMatched): void {
   saleEvent.taker = taker.id;
   saleEvent.price = event.params.price;
   saleEvent.transfer =transfer.id
+  saleEvent.date =event.block.timestamp;
   saleEvent.save();
 
   transfer.saleEvent = saleEvent.id
@@ -233,7 +243,7 @@ export function handleOrdersMatched(event: OrdersMatched): void {
 
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
-  transaction.from = event.transaction.from.toHex();
+  transaction.from = event.transaction.from.toHex().toLowerCase()
   transaction.save();
 
 }
@@ -254,29 +264,29 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   log.warning("tx: {}", [event.transaction.hash.toHex()]);
 
   // BUY
-  let makerBuy = Account.load(addrs[1].toHex());
+  let makerBuy = Account.load(addrs[1].toHex().toLowerCase());
   if (makerBuy === null) {
-    makerBuy = new Account(addrs[1].toHex());
+    makerBuy = new Account(addrs[1].toHex().toLowerCase());
   }
 
-  let takerBuy = Account.load(addrs[2].toHex());
+  let takerBuy = Account.load(addrs[2].toHex().toLowerCase());
   if (takerBuy === null) {
-    takerBuy = new Account(addrs[2].toHex());
+    takerBuy = new Account(addrs[2].toHex().toLowerCase());
   }
   // Sell
-  let makerSell = Account.load(addrs[7].toHex());
+  let makerSell = Account.load(addrs[7].toHex().toLowerCase());
   if (makerSell === null) {
-    makerSell = new Account(addrs[7].toHex());
+    makerSell = new Account(addrs[7].toHex().toLowerCase());
   }
 
-  let takerSell = Account.load(addrs[8].toHex());
+  let takerSell = Account.load(addrs[8].toHex().toLowerCase());
   if (takerSell === null) {
-    takerSell = new Account(addrs[8].toHex());
+    takerSell = new Account(addrs[8].toHex().toLowerCase());
   }
 
-  let feeRecipient = Account.load(addrs[3].toHex());
+  let feeRecipient = Account.load(addrs[3].toHex().toLowerCase());
   if (feeRecipient === null) {
-    feeRecipient = new Account(addrs[3].toHex());
+    feeRecipient = new Account(addrs[3].toHex().toLowerCase());
   }
 
   let target = addrs[4].toHex();
@@ -385,7 +395,7 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     transaction = new Transaction(event.transaction.hash.toHex());
     transaction.block = event.block.number;
     transaction.date = event.block.timestamp;
-    transaction.from = event.transaction.from.toHex();
+    transaction.from = event.transaction.from.toHex().toLowerCase()
     transaction.save()
   }
 
@@ -423,6 +433,8 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
 
     
     saleEvent.buyOrder = buyOrder.id;
+    saleEvent.saleKind = saleKindBuy
+
     buyOrder.invalid = true;
 
     buyOrder.side = sideBuy;
@@ -447,6 +459,7 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     buyOrder.feeMethod = feeMethodBuy;
     buyOrder.basePrice = basePriceBuy;
     buyOrder.parcel = parcel.id;
+    buyOrder.date =event.block.timestamp;
     buyOrder.save()
   }
 
@@ -484,6 +497,8 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
       sellOrder = new Order(orderSell);
     }
     saleEvent.sellOrder = sellOrder.id;
+    saleEvent.saleKind = saleKindSell
+
     sellOrder.side = sideSell;
     sellOrder.saleKind = saleKindSell;
     sellOrder.maker = makerSell.id;
@@ -506,6 +521,7 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     sellOrder.feeMethod = feeMethodSell;
     sellOrder.basePrice = basePriceSell;
     sellOrder.parcel = parcelSell.id;
+    sellOrder.date =event.block.timestamp;
 
     sellOrder.save()
   }
@@ -522,7 +538,7 @@ export function handleParcelTransfer(event: Transfer): void {
     transaction = new Transaction(event.transaction.hash.toHex());
     transaction.block = event.block.number;
     transaction.date = event.block.timestamp;
-    transaction.from = event.transaction.from.toHex();
+    transaction.from = event.transaction.from.toHex().toLowerCase()
     transaction.save()
   }
   
@@ -540,15 +556,15 @@ export function handleParcelTransfer(event: Transfer): void {
     parcel.save()
   }
 
-  let sender = Account.load(event.params._from.toHex());
+  let sender = Account.load(event.params._from.toHex().toLowerCase());
   if (sender == null) {
-    sender = new Account(event.params._from.toHex());
+    sender = new Account(event.params._from.toHex().toLowerCase());
     sender.save()
   }
 
-  let owner = Account.load(event.params._to.toHex());
+  let owner = Account.load(event.params._to.toHex().toLowerCase());
   if (owner == null) {
-    owner = new Account(event.params._to.toHex());
+    owner = new Account(event.params._to.toHex().toLowerCase());
     owner.save()
   }
 
