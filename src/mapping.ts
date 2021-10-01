@@ -553,6 +553,7 @@ export function handleParcelTransfer(event: Transfer): void {
   let parcel = Parcel.load(event.params._tokenId.toString());
   if (parcel === null) {
     parcel = new Parcel(event.params._tokenId.toString());
+    parcel.numTransfers = BigInt.zero()
     parcel.save()
   }
 
@@ -567,12 +568,16 @@ export function handleParcelTransfer(event: Transfer): void {
     owner = new Account(event.params._to.toHex().toLowerCase());
     owner.save()
   }
+  // increase the number of transfer for that parcel
+  parcel.numTransfers = parcel.numTransfers.plus(BigInt.fromI32(1))
 
   transfer.from = sender.id
   transfer.to = owner.id
   transfer.parcel = parcel.id;
   transfer.date = event.block.timestamp;
+  transfer.nthTradeOfParcel = parcel.numTransfers,
   transfer.save()
+
 
   parcel.owner = owner.id;
   parcel.save()

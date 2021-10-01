@@ -578,6 +578,23 @@ export class Parcel extends Entity {
     this.set("owner", Value.fromString(value));
   }
 
+  get numTransfers(): BigInt | null {
+    let value = this.get("numTransfers");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set numTransfers(value: BigInt | null) {
+    if (!value) {
+      this.unset("numTransfers");
+    } else {
+      this.set("numTransfers", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
   get orders(): Array<string> {
     let value = this.get("orders");
     return value!.toStringArray();
@@ -890,6 +907,23 @@ export class Transfer extends Entity {
       this.unset("date");
     } else {
       this.set("date", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
+  get nthTradeOfParcel(): BigInt | null {
+    let value = this.get("nthTradeOfParcel");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set nthTradeOfParcel(value: BigInt | null) {
+    if (!value) {
+      this.unset("nthTradeOfParcel");
+    } else {
+      this.set("nthTradeOfParcel", Value.fromBigInt(<BigInt>value));
     }
   }
 }

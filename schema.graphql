@@ -43,6 +43,7 @@ type Account @entity {
 type Parcel @entity{
 id: ID!
 owner:Account!
+numTransfers:BigInt
 orders:[Order!]! @derivedFrom (field: "parcel")
 saleEvents: [SaleEvent!]! @derivedFrom (field: "parcel")
 transfers: [Transfer!]! @derivedFrom (field: "parcel")
@@ -69,6 +70,7 @@ type Transfer @entity{
   parcel: Parcel!
   transaction: Transaction!
   date:BigInt
+  nthTradeOfParcel:BigInt
 }
 
 type Transaction @entity {
