@@ -56,7 +56,7 @@ type SaleEvent @entity{
   maker: Account
   taker: Account
   price: BigInt
-  parcel: Parcel
+  parcel: Parcel!
   transfer: Transfer
   date: BigInt
   saleKind:Int
@@ -70,7 +70,7 @@ type Transfer @entity{
   parcel: Parcel!
   transaction: Transaction!
   date:BigInt
-  nthTradeOfParcel:BigInt
+  nthTradeOfParcel:BigInt!
 }
 
 type Transaction @entity {

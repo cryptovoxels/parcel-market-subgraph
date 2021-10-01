@@ -114,6 +114,7 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
   let parcel = Parcel.load(parcelId.toString());
   if (parcel === null) {
     parcel = new Parcel(parcelId.toString());
+    parcel.numTransfers = BigInt.zero()
     parcel.save();
   }
   let transaction = Transaction.load(event.transaction.hash.toHex());
@@ -410,12 +411,14 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   let parcel = Parcel.load(parcelIdBuy.toString());
   if (parcel === null) {
     parcel = new Parcel(parcelIdBuy.toString());
+    parcel.numTransfers = BigInt.zero()
     parcel.save();
   }
 
   let parcelSell = Parcel.load(parcelIdSell.toString());
   if (parcelSell === null) {
     parcelSell = new Parcel(parcelIdSell.toString());
+    parcel.numTransfers = BigInt.zero()
     parcelSell.save()
   }
 
@@ -568,14 +571,24 @@ export function handleParcelTransfer(event: Transfer): void {
     owner = new Account(event.params._to.toHex().toLowerCase());
     owner.save()
   }
+
   // increase the number of transfer for that parcel
-  parcel.numTransfers = parcel.numTransfers.plus(BigInt.fromI32(1))
+
+  let p = parcel.numTransfers
+  if(p === null){
+    p = BigInt.zero()
+  }
+  let transferNumber = p.plus(BigInt.fromI32(1))
+  parcel.numTransfers = transferNumber
+  
 
   transfer.from = sender.id
   transfer.to = owner.id
   transfer.parcel = parcel.id;
   transfer.date = event.block.timestamp;
-  transfer.nthTradeOfParcel = parcel.numTransfers,
+
+  transfer.nthTradeOfParcel = transferNumber
+  
   transfer.save()
 
 

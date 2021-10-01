@@ -628,6 +628,7 @@ export class SaleEvent extends Entity {
     super();
     this.set("id", Value.fromString(id));
 
+    this.set("parcel", Value.fromString(""));
     this.set("saleKind", Value.fromI32(0));
   }
 
@@ -742,21 +743,13 @@ export class SaleEvent extends Entity {
     }
   }
 
-  get parcel(): string | null {
+  get parcel(): string {
     let value = this.get("parcel");
-    if (!value || value.kind == ValueKind.NULL) {
-      return null;
-    } else {
-      return value.toString();
-    }
+    return value!.toString();
   }
 
-  set parcel(value: string | null) {
-    if (!value) {
-      this.unset("parcel");
-    } else {
-      this.set("parcel", Value.fromString(<string>value));
-    }
+  set parcel(value: string) {
+    this.set("parcel", Value.fromString(value));
   }
 
   get transfer(): string | null {
@@ -812,6 +805,7 @@ export class Transfer extends Entity {
     this.set("to", Value.fromString(""));
     this.set("parcel", Value.fromString(""));
     this.set("transaction", Value.fromString(""));
+    this.set("nthTradeOfParcel", Value.fromBigInt(BigInt.zero()));
   }
 
   save(): void {
@@ -910,21 +904,13 @@ export class Transfer extends Entity {
     }
   }
 
-  get nthTradeOfParcel(): BigInt | null {
+  get nthTradeOfParcel(): BigInt {
     let value = this.get("nthTradeOfParcel");
-    if (!value || value.kind == ValueKind.NULL) {
-      return null;
-    } else {
-      return value.toBigInt();
-    }
+    return value!.toBigInt();
   }
 
-  set nthTradeOfParcel(value: BigInt | null) {
-    if (!value) {
-      this.unset("nthTradeOfParcel");
-    } else {
-      this.set("nthTradeOfParcel", Value.fromBigInt(<BigInt>value));
-    }
+  set nthTradeOfParcel(value: BigInt) {
+    this.set("nthTradeOfParcel", Value.fromBigInt(value));
   }
 }
 
