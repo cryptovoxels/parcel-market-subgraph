@@ -794,6 +794,23 @@ export class SaleEvent extends Entity {
   set saleKind(value: i32) {
     this.set("saleKind", Value.fromI32(value));
   }
+
+  get nthTradeOfParcel(): BigInt | null {
+    let value = this.get("nthTradeOfParcel");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set nthTradeOfParcel(value: BigInt | null) {
+    if (!value) {
+      this.unset("nthTradeOfParcel");
+    } else {
+      this.set("nthTradeOfParcel", Value.fromBigInt(<BigInt>value));
+    }
+  }
 }
 
 export class Transfer extends Entity {

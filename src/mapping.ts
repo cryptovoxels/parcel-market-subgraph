@@ -235,6 +235,7 @@ export function handleOrdersMatched(event: OrdersMatched): void {
   saleEvent.price = event.params.price;
   saleEvent.transfer =transfer.id
   saleEvent.date =event.block.timestamp;
+  saleEvent.nthTradeOfParcel = transfer.nthTradeOfParcel
   saleEvent.save();
 
   transfer.saleEvent = saleEvent.id
@@ -422,6 +423,7 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     parcelSell.save()
   }
 
+  saleEvent.nthTradeOfParcel = parcel.numTransfers
   saleEvent.parcel = parcel.id
   saleEvent.save()
 

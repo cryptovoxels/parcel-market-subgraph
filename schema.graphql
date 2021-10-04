@@ -60,6 +60,7 @@ type SaleEvent @entity{
   transfer: Transfer
   date: BigInt
   saleKind:Int
+  nthTradeOfParcel:BigInt
 }
 
 type Transfer @entity{
