@@ -49,6 +49,9 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     transaction = new Transaction(event.transaction.hash.toHex());
+    transaction.gasLimit = event.transaction.gasLimit;
+    transaction.gasPrice = event.transaction.gasPrice;
+    transaction.gasUsed = event.block.gasUsed;
   }
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
@@ -120,6 +123,9 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     transaction = new Transaction(event.transaction.hash.toHex());
+    transaction.gasLimit = event.transaction.gasLimit
+    transaction.gasPrice = event.transaction.gasPrice
+    transaction.gasUsed = event.block.gasUsed
   }
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
@@ -212,7 +218,6 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     if (buyOrder === null) {
       buyOrder = new Order(event.params.buyHash.toHexString());
 
-      
       buyOrder.maker = maker.id
       buyOrder.taker = taker.id
       buyOrder.basePrice = event.params.price
@@ -229,7 +234,6 @@ export function handleOrdersMatched(event: OrdersMatched): void {
     transfer = new TransferEntity(event.transaction.hash.toHex());
   }
   
-
   saleEvent.maker = maker.id;
   saleEvent.taker = taker.id;
   saleEvent.price = event.params.price;
@@ -243,6 +247,9 @@ export function handleOrdersMatched(event: OrdersMatched): void {
   transfer.date = event.block.timestamp;
   transfer.save()
 
+  transaction.gasLimit = event.transaction.gasLimit;
+  transaction.gasPrice = event.transaction.gasPrice;
+  transaction.gasUsed = event.block.gasUsed;
   transaction.block = event.block.number;
   transaction.date = event.block.timestamp;
   transaction.from = event.transaction.from.toHex().toLowerCase()
@@ -395,6 +402,9 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     transaction = new Transaction(event.transaction.hash.toHex());
+    transaction.gasLimit = event.transaction.gasLimit
+    transaction.gasPrice = event.transaction.gasPrice;
+    transaction.gasUsed = event.block.gasUsed;
     transaction.block = event.block.number;
     transaction.date = event.block.timestamp;
     transaction.from = event.transaction.from.toHex().toLowerCase()
@@ -427,9 +437,13 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   saleEvent.parcel = parcel.id
   saleEvent.save()
 
-  let order = saleEvent.buyOrder
+  let order = saleEvent.buyOrder || zeroHash as string
    /* Create/Edit an order ONLY if the order is valid; i.e Not an order hash of 0000000... */
-  if(order !== null && isZero(order)==false){
+   if(order === null){
+  order = zeroHash 
+  }
+
+  if(isZero(order)==false){
 
     let buyOrder = Order.load(order);
     if(buyOrder ===null){
@@ -468,7 +482,6 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     buyOrder.save()
   }
 
-  
   // exchange.hashOrder_(
   //   addressesBuy,
   //   uintsBuy,
@@ -481,21 +494,14 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
   //   staticExtradataBuy
   // );
 
-  // exchange.hashOrder_(
-  //   addressesSell,
-  //   uintsSell,
-  //   feeMethodSell,
-  //   sideSell,
-  //   saleKindSell,
-  //   howToCallSell,
-  //   callDataSell,
-  //   replacementPatternSell,
-  //   staticExtradataSell
-  // );
 
-  let orderSell = saleEvent.sellOrder
+  let orderSell = saleEvent.sellOrder || zeroHash as string
    /* Create/Edit an order ONLY if the order is valid; i.e Not an order hash of 0000000... */
-  if(orderSell !== null && isZero(orderSell)==false){
+   if(orderSell === null){
+  orderSell=zeroHash 
+  }
+
+  if( isZero(orderSell)==false){
 
     let sellOrder = Order.load(orderSell); // will likely exist
     if(sellOrder ===null){
@@ -529,8 +535,8 @@ export function handleAtomicMatch(event: AtomicMatch_Call): void {
     sellOrder.date =event.block.timestamp;
 
     sellOrder.save()
+  
   }
-
 
   saleEvent.save()
 }
@@ -541,6 +547,9 @@ export function handleParcelTransfer(event: Transfer): void {
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     transaction = new Transaction(event.transaction.hash.toHex());
+    transaction.gasLimit = event.transaction.gasLimit;
+    transaction.gasPrice = event.transaction.gasPrice;
+    transaction.gasUsed = event.block.gasUsed;
     transaction.block = event.block.number;
     transaction.date = event.block.timestamp;
     transaction.from = event.transaction.from.toHex().toLowerCase()

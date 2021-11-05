@@ -79,4 +79,7 @@ type Transaction @entity {
   date: BigInt!
   block: BigInt!
   from: Account!
+  gasPrice:BigInt
+  gasLimit:BigInt
+  gasUsed:BigInt
 }
