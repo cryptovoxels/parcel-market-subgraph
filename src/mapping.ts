@@ -30,6 +30,7 @@ import { Weth } from "../generated/Weth/Weth";
 import { Transfer } from "../generated/Parcel/Parcel";
 
 const CRYPTOVOXELS_CONTRACT = "0x79986af15539de2db9a5086382daeda917a9cf0c";
+const WyvernExchangeV1 = "0x7be8076f4ea4a4ad08075c2508e481d6c946d12b"
 const zeroHash =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 const zeroAddress = "0x0000000000000000000000000000000000000000"
@@ -39,8 +40,11 @@ function isZero(hash:string):boolean {return hash == zeroHash} ;
 
 export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
   // Listen only to cryptovoxels parcels transactions
-
   if (event.params.target.toHex() != CRYPTOVOXELS_CONTRACT) {
+    return
+  }
+  if(event.block.number>BigInt.fromString('14120910') && event.address.toHexString().toLowerCase()==WyvernExchangeV1.toLowerCase()){
+    // ignore Opensea's first contract after new contract is born
     return
   }
   log.warning("IS CV Event ", []);
@@ -102,12 +106,16 @@ export function handleOrderApprovedPartOne(event: OrderApprovedPartOne): void {
 }
 
 export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
-
+  if(event.block.number>BigInt.fromString('14120910') && event.address.toHexString().toLowerCase()==WyvernExchangeV1.toLowerCase()){
+    // ignore Opensea's first contract after new contract is born
+    return
+  }
   let order = Order.load(event.params.hash.toHexString());
   if (order === null) {
     //Missing approved part one
     return
   }
+
   log.warning("orderApproved2: {}", [event.params.hash.toHex()]);
 
   let paymentToken = getPaymentToken(event.params.paymentToken)
@@ -158,6 +166,10 @@ export function handleOrderApprovedPartTwo(event: OrderApprovedPartTwo): void {
 }
 
 export function handleOrderCancelled(event: OrderCancelled): void {
+  if(event.block.number>BigInt.fromString('14120910') && event.address.toHexString().toLowerCase()==WyvernExchangeV1.toLowerCase()){
+    // ignore Opensea's first contract after new contract is born
+    return
+  }
   let order = Order.load(event.params.hash.toHex());
   if (order === null) {
     // no order
@@ -169,7 +181,10 @@ export function handleOrderCancelled(event: OrderCancelled): void {
 }
 
 export function handleOrdersMatched(event: OrdersMatched): void {
-
+  if(event.block.number>BigInt.fromString('14120910') && event.address.toHexString().toLowerCase()==WyvernExchangeV1.toLowerCase()){
+    // ignore Opensea's first contract after new contract is born
+    return
+  }
   let transaction = Transaction.load(event.transaction.hash.toHex());
   if (transaction === null) {
     log.info('Transaction unknown, skipping',[])
@@ -262,6 +277,10 @@ export function handleOwnershipRenounced(event: OwnershipRenounced): void {}
 export function handleOwnershipTransferred(event: OwnershipTransferred): void {}
 
 export function handleAtomicMatch(event: AtomicMatch_Call): void {
+  if(event.block.number>BigInt.fromString('14120910') && event.to.toHexString().toLowerCase()==WyvernExchangeV1.toLowerCase()){
+    // ignore Opensea's first contract after new contract is born
+    return
+  }
   let addrs = event.inputValues[0].value.toAddressArray();
   let uints = event.inputValues[1].value.toBigIntArray();
   let feeMethodsSidesKindsHowToCalls = event.inputValues[2].value.toI32Array();

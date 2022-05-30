@@ -8,7 +8,7 @@ dataSources:
     source:
       address: "0x7f268357A8c2552623316e2562D90e642bB538E5"
       abi: WyvernExchange
-      startBlock: 14246000
+      startBlock: 14120910
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
